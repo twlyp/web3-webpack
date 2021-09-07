@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract VolcanoCoin is ERC20, AccessControl {
     bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
@@ -81,14 +82,18 @@ contract VolcanoCoin is ERC20, AccessControl {
     function updateDetails(uint _id, PaymentTypes _type, string calldata _comment) public {
         require(_id < currentPaymentId, "this id doesn't exist");
         require(uint(_type) < 5, "invalid payment type");
-        
+        string memory comment = _comment;
         Record memory _record = paymentsFromId[_id];
-        if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender))
+        if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
             require(_record.sender == msg.sender, "this payment is not yours to edit");
+        } else {
+            string memory senderAddress = Strings.toHexString(uint256(uint160(msg.sender))); 
+            comment = string(abi.encodePacked(_comment, " (updated by ", senderAddress, ")"));
+        }
         
         Payment storage _payment = payments[_record.sender][_record.arrayIndex];
         _payment.paymentType = _type;
-        _payment.comment = _record.sender == msg.sender ? _comment : string(abi.encodePacked(_comment, ' (updated by admin)'));
+        _payment.comment = comment;
     }
     
 }
