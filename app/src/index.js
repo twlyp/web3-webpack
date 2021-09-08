@@ -1,4 +1,5 @@
 import Web3 from "web3";
+const { fromWei, toWei } = Web3.utils;
 import volcanoCoinArtifact from "../../build/contracts/VolcanoCoin.json";
 
 const App = {
@@ -23,8 +24,27 @@ const App = {
       this.account = accounts[0];
 
       this.refreshBalance();
-    } catch (error) {
-      console.error("Could not connect to contract or chain.");
+
+      //listen to events
+      this.volcano.events
+        .Transfer({ address: [this.account] })
+        .on("data", (ev) => {
+          this.refreshBalance();
+
+          const { returnValues } = ev;
+          let { from, to, value } = returnValues;
+          value = fromWei(value, "ether");
+          if (from === this.account) {
+            alert(`you just spent ${value} VLC`);
+          } else if (to === this.account) {
+            alert(`you just received ${value} VLC`);
+          }
+        })
+        .on("error", (err) => {
+          throw err;
+        });
+    } catch (err) {
+      console.error(err);
     }
   },
 
@@ -33,20 +53,21 @@ const App = {
     const balance = await balanceOf(this.account).call();
 
     const balanceElement = document.getElementsByClassName("balance")[0];
-    balanceElement.innerHTML = balance;
+    balanceElement.innerHTML = fromWei(String(balance), "ether");
   },
 
   sendCoin: async function () {
-    const amount = parseInt(document.getElementById("amount").value);
+    const amount = document.getElementById("amount").value;
     const receiver = document.getElementById("receiver").value;
 
     this.setStatus("Initiating transaction... (please wait)");
 
     const { transfer } = this.volcano.methods;
-    await transfer(receiver, amount).send({ from: this.account });
+    await transfer(receiver, toWei(amount, "ether")).send({
+      from: this.account,
+    });
 
     this.setStatus("Transaction complete!");
-    this.refreshBalance();
   },
 
   setStatus: function (message) {
